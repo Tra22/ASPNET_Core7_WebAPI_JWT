@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using ASPNET_Core7_WebAPI_JWT.Constant;
 using ASPNET_Core7_WebAPI_JWT.Dtos.Authentication;
+using ASPNET_Core7_WebAPI_JWT.Entities;
 using ASPNET_Core7_WebAPI_JWT.Model.Identity;
 using ASPNET_Core7_WebAPI_JWT.Services.Interface;
 using Microsoft.AspNetCore.Identity;
@@ -12,15 +13,18 @@ using Microsoft.IdentityModel.Tokens;
 namespace ASPNET_Core7_WebAPI_JWT.Services {
     public class AuthenticationService : IAuthenticationService
     {
+        private readonly DataContext _context;
         private readonly UserManager<AuthenticationUser> _userManager;
         private readonly RoleManager<AuthenticationRole> _roleManager;
         private readonly IConfiguration _configuration;
 
         public AuthenticationService(
+            DataContext context,
             UserManager<AuthenticationUser> userManager,
             RoleManager<AuthenticationRole> roleManager,
             IConfiguration configuration)
         {
+            _context = context;
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
@@ -88,34 +92,41 @@ namespace ASPNET_Core7_WebAPI_JWT.Services {
             return await AuthenticateAfterRegister(request);
         }
         private async Task<AuthenticationUser> RegisterUser(RegisterDto request, string roleName, List<Claim>? claims = null){
-            var userExists = await _userManager.FindByNameAsync(request.Username);
-            if (userExists is not null)
-                throw new Exception("User already exists!");
+            using var transaction = _context.Database.BeginTransaction();
+            try{
+                var userExists = await _userManager.FindByNameAsync(request.Username);
+                if (userExists is not null)
+                    throw new Exception("User already exists!");
 
-            AuthenticationUser user = new()
-            {
-                Email = request.Email,
-                SecurityStamp = Guid.NewGuid().ToString(),
-                UserName = request.Username,
-                PhoneNumber = request.PhoneNumber
-            };
-            var result = await _userManager.CreateAsync(user, request.Password);
-            if (!result.Succeeded)
-                throw new Exception("User creation failed! Please check user details and try again.");
+                AuthenticationUser user = new()
+                {
+                    Email = request.Email,
+                    SecurityStamp = Guid.NewGuid().ToString(),
+                    UserName = request.Username,
+                    PhoneNumber = request.PhoneNumber
+                };
+                var result = await _userManager.CreateAsync(user, request.Password);
+                if (!result.Succeeded)
+                    throw new Exception("User creation failed! Please check user details and try again.");
 
-            if (!await _roleManager.RoleExistsAsync(roleName))
-                await _roleManager.CreateAsync(new AuthenticationRole(roleName));
+                if (!await _roleManager.RoleExistsAsync(roleName))
+                    await _roleManager.CreateAsync(new AuthenticationRole(roleName));
 
-            if (await _roleManager.RoleExistsAsync(roleName)) {
-                await _userManager.AddToRoleAsync(user, roleName);
+                if (await _roleManager.RoleExistsAsync(roleName)) {
+                    await _userManager.AddToRoleAsync(user, roleName);
+                }
+                if(user.PhoneNumber is not null){
+                    await _userManager.AddClaimAsync(user, new Claim("PhoneNumber", user.PhoneNumber));
+                }
+                if(claims is not null)
+                    foreach(var claim in claims)
+                        await _userManager.AddClaimAsync(user, claim);
+                await transaction.CommitAsync();
+                return user;
+            }catch(Exception){
+                await transaction.RollbackAsync();
+                throw;
             }
-            if(user.PhoneNumber is not null){
-                await _userManager.AddClaimAsync(user, new Claim("PhoneNumber", user.PhoneNumber));
-            }
-            if(claims is not null)
-                foreach(var claim in claims)
-                    await _userManager.AddClaimAsync(user, claim);
-            return user;
         }
         private async Task<AuthenticationResponseDto> AuthenticateAfterRegister(RegisterDto request)
         {
