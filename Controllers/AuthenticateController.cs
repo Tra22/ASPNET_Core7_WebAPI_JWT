@@ -1,6 +1,6 @@
 using Asp.Versioning;
 using ASPNET_Core7_WebAPI_JWT.Dtos.Authentication;
-using ASPNET_Core7_WebAPI_JWT.Payload;
+using ASPNET_Core7_WebAPI_JWT.Payload.Global;
 using ASPNET_Core7_WebAPI_JWT.Services.Interface;
 using Microsoft.AspNetCore.Mvc;
 

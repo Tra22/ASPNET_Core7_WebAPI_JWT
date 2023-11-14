@@ -1,5 +1,5 @@
 using Asp.Versioning;
-using ASPNET_Core7_WebAPI_JWT.Payload;
+using ASPNET_Core7_WebAPI_JWT.Payload.Global;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

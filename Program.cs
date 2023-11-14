@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Text;
 using Asp.Versioning;
 using ASPNET_Core7_WebAPI_JWT.Configuration;
 using ASPNET_Core7_WebAPI_JWT.Entities;
 using ASPNET_Core7_WebAPI_JWT.Middleware.ExceptionHandler;
 using ASPNET_Core7_WebAPI_JWT.Model.Identity;
+using ASPNET_Core7_WebAPI_JWT.Payload.Global;
 using ASPNET_Core7_WebAPI_JWT.Policies.Handler;
 using ASPNET_Core7_WebAPI_JWT.Policies.Requirement;
 using ASPNET_Core7_WebAPI_JWT.Services;
@@ -11,6 +13,7 @@ using ASPNET_Core7_WebAPI_JWT.Services.Interface;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -48,7 +51,7 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JWT:ValidAudience"],
         ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]??"default_secret"))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"] ?? "default_secret"))
     };
 });
 
@@ -58,19 +61,19 @@ builder.Services.AddSingleton<IAuthorizationHandler, HasPhoneNumberAndConfirmedH
 builder.Services.AddAuthorization(options =>
 {
     //ClaimBaseController
-   options.AddPolicy("UserOnly", policy => policy.RequireClaim("UserNumberID"));
-   options.AddPolicy("UserSpecificID", policy => policy.RequireClaim("UserNumberID", "111", "222"));
+    options.AddPolicy("UserOnly", policy => policy.RequireClaim("UserNumberID"));
+    options.AddPolicy("UserSpecificID", policy => policy.RequireClaim("UserNumberID", "111", "222"));
 
-   //PolicyBaseController
-   options.AddPolicy("HasClaimAsAdmin", policy =>
-        policy.RequireAssertion(context => 
-            context.User.HasClaim(c =>
-                    (c.Type == "Admin" || c.Type == "SuperAdmin")
-                    && c.Value == "true"
-                    && c.Issuer == "http://localhost:5000"
-                )
-            )
-        );
+    //PolicyBaseController
+    options.AddPolicy("HasClaimAsAdmin", policy =>
+         policy.RequireAssertion(context =>
+             context.User.HasClaim(c =>
+                     (c.Type == "Admin" || c.Type == "SuperAdmin")
+                     && c.Value == "true"
+                     && c.Issuer == "http://localhost:5000"
+                 )
+             )
+         );
     //PolicyCustomController
     options.AddPolicy("HasPhoneNumberAndConfirmed", policy =>
         policy.Requirements.Add(new HasPhoneNumberConfirmedRequirement(true)));
@@ -85,7 +88,7 @@ builder.Services
                 })
     .AddApiExplorer(options =>
     {
-        options.DefaultApiVersion = new ApiVersion(1,0);
+        options.DefaultApiVersion = new ApiVersion(1, 0);
         // Add the versioned API explorer, which also adds IApiVersionDescriptionProvider service
         // note: the specified format code will format the version as "'v'major[.minor][-status]"
         options.GroupNameFormat = "'v'VVV";
@@ -95,7 +98,22 @@ builder.Services
         options.SubstituteApiVersionInUrl = true;
         options.AssumeDefaultVersionWhenUnspecified = true;
     });
-builder.Services.AddControllers();
+builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
+     {
+         options.InvalidModelStateResponseFactory = context =>
+         {
+             var result = new Response<ValidationResultModel> { 
+                Data = new ValidationResultModel(context.ModelState),
+                Success = false,
+                Error = "Validation error.",
+                TraceId = context.HttpContext.TraceIdentifier ?? Activity.Current?.Id
+            };
+            return new BadRequestObjectResult(result)
+            {
+                ContentTypes = { "application/problem+json" }
+            };
+         };
+     });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
@@ -106,7 +124,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 //inject Data Access Layer - Repository
- 
+
 
 //inject Service layer
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
@@ -120,7 +138,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger(options => { options.RouteTemplate =  $"{SwaggerRoutePrefix}/{{documentName}}/docs.json";});
+    app.UseSwagger(options => { options.RouteTemplate = $"{SwaggerRoutePrefix}/{{documentName}}/docs.json"; });
     app.UseSwaggerUI(options =>
     {
         options.RoutePrefix = SwaggerRoutePrefix;
