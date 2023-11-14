@@ -105,7 +105,6 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<SwaggerDefaultValues>();
 });
 
-builder.Services.AddAutoMapper(typeof(Program));    
 //inject Data Access Layer - Repository
  
 
