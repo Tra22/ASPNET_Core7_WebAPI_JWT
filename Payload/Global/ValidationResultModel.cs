@@ -9,9 +9,9 @@ namespace ASPNET_Core7_WebAPI_JWT.Payload.Global {
         public ValidationResultModel(ModelStateDictionary modelState)  
         {  
             Message = "Validation Failed"; 
-            Errors = modelState.Keys  
-                    .SelectMany(key => modelState[key].Errors.Select(x => new ValidationError(key, 0, x.ErrorMessage)))  
-                    .ToList();  
+            Errors = modelState.Select(
+                    x => new ValidationError(x.Key, 0, x.Value is null ? new List<string>() : x.Value.Errors.Select(err => err.ErrorMessage).ToList())
+                ).ToList(); 
         }  
     }
 }

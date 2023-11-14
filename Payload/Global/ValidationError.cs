@@ -4,9 +4,9 @@ namespace ASPNET_Core7_WebAPI_JWT.Payload.Global {
         public string? Field { get; }  
         public int Code { get; set; }  
 
-        public string? Message { get; }  
+        public List<string> Message { get; }  
 
-        public ValidationError(string field,int code, string message)  
+        public ValidationError(string field,int code, List<string> message)  
         {  
             Field = field != string.Empty ? field : null;  
             Code = code != 0 ? code : 1;  //set the default code to 55. you can remove it or change it to 400.  
