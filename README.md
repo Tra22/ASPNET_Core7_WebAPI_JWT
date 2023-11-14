@@ -13,7 +13,6 @@ In this example will show about:
 3. Swagger for API's Endpoint
 4. API-Versioning
 5. Serial-Log
-6. AutoMapper
 
 ## Getting Started
 These instructions will get you to setup the project, install sdk and add package (CLI or Package manager console).
@@ -38,8 +37,6 @@ These instructions will get you to setup the project, install sdk and add packag
        `dotnet add package Asp.Versioning.Mvc.ApiExplorer`
      - Serial-Log
        `dotnet add package Serilog.AspNetCore`
-     - AutoMapper
-       `dotnet add package AutoMapper.Extensions.Microsoft.DependencyInjection`
 5.  Migrate Model to Database<br>
      - Command Line<br>
       Add Migration `dotnet ef migrations add AddStudentToDB`<br>
