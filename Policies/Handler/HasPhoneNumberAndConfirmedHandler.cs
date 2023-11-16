@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using ASPNET_Core7_WebAPI_JWT.Policies.Requirement;
 using Microsoft.AspNetCore.Authorization;
 
